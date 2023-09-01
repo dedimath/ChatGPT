@@ -56,10 +56,9 @@ def processar_upload(contents, filename):
 @app.callback(Output('file-list', 'children'),
               Input('output-data', 'children'),
               Input('file-list', 'children'),
-              Input({'type': 'delete-button', 'index': ALL}, 'n_clicks'),
               State('file-list', 'children'),
               prevent_initial_call=True)
-def atualizar_lista_arquivos(_, file_links, delete_clicks, file_links_state):
+def atualizar_lista_arquivos(_, file_links, file_links_state):
     bucket_name = 'seu-nome-de-bucket'
     files = listar_arquivos_bucket(bucket_name)
     
