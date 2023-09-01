@@ -71,7 +71,7 @@ def atualizar_lista_arquivos(_, file_links, delete_clicks, file_links_state):
         triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
         idx = triggered_id['index']
         
-        if idx.startswith('delete-button-'):
+        if isinstance(idx, str) and idx.startswith('delete-button-'):
             file_to_delete = idx.replace('delete-button-', '')
             excluir_arquivo_bucket(bucket_name, file_to_delete)
         
