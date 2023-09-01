@@ -21,7 +21,11 @@ app.layout = html.Div([
     ),
     html.Div(id='output-data'),
     html.Div([
-        dcc.Input(id='delete-input', type='text', placeholder='Nome do arquivo a ser deletado'),
+        dcc.Dropdown(
+            id='delete-dropdown',
+            options=[],
+            placeholder='Selecione um arquivo para deletar'
+        ),
         html.Button('Deletar Arquivo', id='delete-button'),
     ]),
     html.Div(id='file-list'),
@@ -57,23 +61,34 @@ def processar_upload(contents, filename):
 
     return html.Div(f'Arquivo "{filename}" enviado para o S3.')
 
+@app.callback(Output('delete-dropdown', 'options'),
+              Input('output-data', 'children'),
+              State('delete-dropdown', 'value'),
+              prevent_initial_call=True)
+def atualizar_lista_arquivos(_, selected_file):
+    bucket_name = 'seu-nome-de-bucket'
+    files = listar_arquivos_bucket(bucket_name)
+    
+    dropdown_options = [{'label': file, 'value': file} for file in files]
+    
+    return dropdown_options
+
 @app.callback(Output('file-list', 'children'),
               Input('output-data', 'children'),
               Input('file-list', 'children'),
-              [Input('delete-button', 'n_clicks')],
-              State('delete-input', 'value'),
+              Input('delete-button', 'n_clicks'),
+              State('delete-dropdown', 'value'),
               State('file-list', 'children'),
               prevent_initial_call=True)
-def atualizar_lista_arquivos(_, file_links, delete_clicks, delete_input, file_links_state):
+def atualizar_lista_arquivos(_, file_links, delete_clicks, selected_file, file_links_state):
     bucket_name = 'seu-nome-de-bucket'
     files = listar_arquivos_bucket(bucket_name)
     
     updated_file_links = []
     
-    if delete_clicks and delete_input:
-        file_to_delete = delete_input.strip()
-        if file_to_delete in files:
-            excluir_arquivo_bucket(bucket_name, file_to_delete)
+    if delete_clicks and selected_file:
+        if selected_file in files:
+            excluir_arquivo_bucket(bucket_name, selected_file)
     
     for file in files:
         file_link = dcc.Link(file, href=f'/download/{file}', target='_blank')
