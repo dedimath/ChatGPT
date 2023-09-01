@@ -24,7 +24,6 @@ app.layout = html.Div([
         dcc.Dropdown(
             id='delete-dropdown',
             options=[],
-            value=None,  # Valor inicial é None
             placeholder='Selecione um arquivo para deletar'
         ),
         html.Button('Deletar Arquivo', id='delete-button'),
@@ -63,49 +62,48 @@ def processar_upload(contents, filename):
     return html.Div(f'Arquivo "{filename}" enviado para o S3.')
 
 @app.callback(Output('delete-dropdown', 'options'),
-              Input('output-data', 'children'),
-              State('delete-dropdown', 'value'),
+              Input('upload-data', 'contents'),
               prevent_initial_call=True)
-def atualizar_lista_arquivos(_, selected_file):
+def atualizar_lista_arquivos(contents):
+    if contents is None:
+        return []
+
     bucket_name = 'seu-nome-de-bucket'
     files = listar_arquivos_bucket(bucket_name)
-    
+
     dropdown_options = [{'label': file, 'value': file} for file in files]
-    
+
     return dropdown_options
 
-@app.callback(Output('delete-dropdown', 'value'),  # Define o valor da lista suspensa
-              Output('file-list', 'children'),
+@app.callback(Output('file-list', 'children'),
               Input('output-data', 'children'),
               Input('delete-button', 'n_clicks'),
               State('delete-dropdown', 'value'),
-              State('file-list', 'children'),
               prevent_initial_call=True)
-def atualizar_lista_arquivos(_, delete_clicks, selected_file, file_links_state):
+def atualizar_lista_arquivos(_, delete_clicks, selected_file):
     bucket_name = 'seu-nome-de-bucket'
     files = listar_arquivos_bucket(bucket_name)
-    
+
     updated_file_links = []
-    
+
     if delete_clicks and selected_file:
         if selected_file in files:
             excluir_arquivo_bucket(bucket_name, selected_file)
-            selected_file = None  # Define o valor da lista suspensa como None após a exclusão
-    
+
     for file in files:
         file_link = dcc.Link(file, href=f'/download/{file}', target='_blank')
         updated_file_links.append(html.Div([
             file_link,
             html.Br(),
         ]))
-    
-    return selected_file, updated_file_links  # Retorna o valor para a lista suspensa
+
+    return updated_file_links
 
 @server.route('/download/<path:filename>')
 def download_file(filename):
     bucket_name = 'seu-nome-de-bucket'
     file_stream = s3_client.get_object(Bucket=bucket_name, Key=filename)['Body'].read()
-    
+
     response = flask.Response(file_stream)
     response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
