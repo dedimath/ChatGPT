@@ -24,6 +24,7 @@ app.layout = html.Div([
         dcc.Dropdown(
             id='delete-dropdown',
             options=[],
+            value=None,  # Valor inicial é None
             placeholder='Selecione um arquivo para deletar'
         ),
         html.Button('Deletar Arquivo', id='delete-button'),
@@ -73,14 +74,14 @@ def atualizar_lista_arquivos(_, selected_file):
     
     return dropdown_options
 
-@app.callback(Output('file-list', 'children'),
+@app.callback(Output('delete-dropdown', 'value'),  # Define o valor da lista suspensa
+              Output('file-list', 'children'),
               Input('output-data', 'children'),
-              Input('file-list', 'children'),
               Input('delete-button', 'n_clicks'),
               State('delete-dropdown', 'value'),
               State('file-list', 'children'),
               prevent_initial_call=True)
-def atualizar_lista_arquivos(_, file_links, delete_clicks, selected_file, file_links_state):
+def atualizar_lista_arquivos(_, delete_clicks, selected_file, file_links_state):
     bucket_name = 'seu-nome-de-bucket'
     files = listar_arquivos_bucket(bucket_name)
     
@@ -89,6 +90,7 @@ def atualizar_lista_arquivos(_, file_links, delete_clicks, selected_file, file_l
     if delete_clicks and selected_file:
         if selected_file in files:
             excluir_arquivo_bucket(bucket_name, selected_file)
+            selected_file = None  # Define o valor da lista suspensa como None após a exclusão
     
     for file in files:
         file_link = dcc.Link(file, href=f'/download/{file}', target='_blank')
@@ -97,7 +99,7 @@ def atualizar_lista_arquivos(_, file_links, delete_clicks, selected_file, file_l
             html.Br(),
         ]))
     
-    return updated_file_links
+    return selected_file, updated_file_links  # Retorna o valor para a lista suspensa
 
 @server.route('/download/<path:filename>')
 def download_file(filename):
