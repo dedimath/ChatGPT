@@ -56,28 +56,27 @@ def processar_upload(contents, filename):
 @app.callback(Output('file-list', 'children'),
               Input('output-data', 'children'),
               Input('file-list', 'children'),
-              [Input({'type': 'delete-button', 'index': 'all'}, 'n_clicks')],
               State('file-list', 'children'),
               prevent_initial_call=True)
-def atualizar_lista_arquivos(_, file_links, delete_clicks, file_links_state):
+def atualizar_lista_arquivos(_, file_links, file_links_state):
     bucket_name = 'seu-nome-de-bucket'
     files = listar_arquivos_bucket(bucket_name)
     
     updated_file_links = []
     
-    ctx = dash.callback_context
-    
-    if ctx.triggered:
-        triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-        idx = triggered_id['index']
-        
-        if isinstance(idx, str) and idx.startswith('delete-button-'):
-            file_to_delete = idx.replace('delete-button-', '')
-            excluir_arquivo_bucket(bucket_name, file_to_delete)
-        
     for file in files:
         file_link = dcc.Link(file, href=f'/download/{file}', target='_blank')
         delete_button = html.Button(f'Deletar {file}', id={'type': 'delete-button', 'index': f'delete-button-{file}'})
+        
+        @app.callback(
+            Output({ 'type': 'delete-button', 'index': f'delete-button-{file}' }, 'n_clicks'),
+            Input({ 'type': 'delete-button', 'index': f'delete-button-{file}' }, 'n_clicks')
+        )
+        def delete_file(n_clicks):
+            if n_clicks is not None:
+                excluir_arquivo_bucket(bucket_name, file)
+                return None
+            return n_clicks
         
         updated_file_links.append(html.Div([
             file_link,
