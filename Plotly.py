@@ -14,16 +14,39 @@ bucket_name = 'seu-bucket-s3'
 
 app.layout = dbc.Container([
     html.H1('Árvore de Diretórios do Amazon S3'),
-    html.Div(id='tree'),
+    html.Div(id='s3-tree')
 ])
 
 @app.callback(
-    Output('tree', 'children'),
-    Input('tree', 'n_clicks'),
+    Output('s3-tree', 'children'),
+    Output('s3-tree', 'style'),
+    Input('s3-tree', 'n_clicks'),
     prevent_initial_call=True
 )
-def toggle_dir_contents(n_clicks):
-    return construir_arvore_s3('')
+def create_s3_tree(n_clicks):
+    objetos = listar_objetos_s3('')
+    tree_structure = '<div id="jstree">'
+    
+    for obj in objetos:
+        if '/' in obj:
+            subdir = obj.split('/')[0]
+            tree_structure += f'<li data-jstree=\'{{ "icon" : "fa fa-folder" }}\'>{subdir}</li>'
+    
+    tree_structure += '</div>'
+    
+    script = f"""
+    <script>
+        $('#jstree').jstree({{
+            "core" : {{
+                "data" : [
+                    {tree_structure}
+                ]
+            }}
+        }});
+    </script>
+    """
+    
+    return [dcc.Markdown(script)], {'overflow-y': 'scroll', 'height': '400px'}
 
 def listar_objetos_s3(prefix):
     objetos = []
@@ -31,21 +54,6 @@ def listar_objetos_s3(prefix):
     for obj in response.get('Contents', []):
         objetos.append(obj['Key'])
     return objetos
-
-def construir_arvore_s3(prefix):
-    objetos = listar_objetos_s3(prefix)
-    elementos = []
-    for obj in objetos:
-        if '/' in obj[len(prefix):]:
-            subdir = obj[len(prefix):].split('/')[0]
-            botao_expansao = dcc.Loading(type="default", children=[
-                html.Button(f"{subdir}/", id={'type': 'dir-button', 'index': subdir}, n_clicks=0),
-                html.Div(id={'type': 'dir-content', 'index': subdir})
-            ])
-            elementos.append(botao_expansao)
-        else:
-            elementos.append(html.Div(obj[len(prefix):]))
-    return elementos
 
 if __name__ == '__main__':
     app.run_server(debug=True)
