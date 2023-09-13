@@ -1,7 +1,6 @@
 import dash
 import dash_bootstrap_components as dbc
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc, html
 from dash.dependencies import Input, Output
 import boto3
 
@@ -22,36 +21,30 @@ def listar_objetos_s3(prefix):
 
 def construir_arvore_s3(prefix):
     objetos = listar_objetos_s3(prefix)
-    tree = html.Div()
+    elementos = []
     for obj in objetos:
         if '/' in obj[len(prefix):]:
             subdir = obj[len(prefix):].split('/')[0]
-            if not any(subdir in div['props']['children'][0]['props']['children'] for div in tree.children):
-                sub_tree = construir_arvore_s3(obj)
-                tree.children.append(html.Div([
-                    html.Button(f"{subdir}/", id={'type': 'dir-button', 'index': subdir}),
-                    dcc.Store(id={'type': 'dir-content', 'index': subdir}, data=sub_tree),
-                    html.Div(id={'type': 'dir-contents', 'index': subdir})
-                ]))
+            elementos.append(html.Button(f"{subdir}/", id={'type': 'dir-button', 'index': subdir}))
         else:
-            tree.children.append(html.Div(obj[len(prefix):]))
-    return tree
+            elementos.append(html.Div(obj[len(prefix):]))
+    return elementos
 
 app.layout = dbc.Container([
     html.H1('Árvore de Diretórios do Amazon S3'),
-    construir_arvore_s3(''),
+    html.Div(id='tree'),
 ])
 
 @app.callback(
-    Output({'type': 'dir-contents', 'index': Input({'type': 'dir-button', 'index': ''})}, 'children'),
-    Input({'type': 'dir-button', 'index': ''}, 'n_clicks'),
+    Output('tree', 'children'),
+    Input({'type': 'dir-button', 'index': Input('tree', 'children')}, 'n_clicks'),
     prevent_initial_call=True
 )
-def toggle_dir_contents(n_clicks):
-    if n_clicks % 2 == 0:
-        return []
-    else:
-        return dcc.Store(id={'type': 'dir-contents', 'index': ''}).data
+def toggle_dir_contents(n_clicks, children):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    subdir = changed_id.split('.')[1]
+    prefix = f"{subdir}/"
+    return construir_arvore_s3(prefix)
 
 if __name__ == '__main__':
     app.run_server(debug=True)
