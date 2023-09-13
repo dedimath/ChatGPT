@@ -26,10 +26,12 @@ def construir_arvore_s3(prefix):
     for obj in objetos:
         if '/' in obj[len(prefix):]:
             subdir = obj[len(prefix):].split('/')[0]
-            if not any(subdir in div['props']['children'] for div in tree.children):
+            if not any(subdir in div['props']['children'][0]['props']['children'] for div in tree.children):
+                sub_tree = construir_arvore_s3(obj)
                 tree.children.append(html.Div([
                     html.Button(f"{subdir}/", id={'type': 'dir-button', 'index': subdir}),
-                    html.Div(id={'type': 'dir-content', 'index': subdir}, style={'display': 'none'})
+                    dcc.Store(id={'type': 'dir-content', 'index': subdir}, data=sub_tree),
+                    html.Div(id={'type': 'dir-contents', 'index': subdir})
                 ]))
         else:
             tree.children.append(html.Div(obj[len(prefix):]))
@@ -41,15 +43,15 @@ app.layout = dbc.Container([
 ])
 
 @app.callback(
-    Output({'type': 'dir-content', 'index': Input('dir-button', 'n_clicks')}, 'style'),
-    Input({'type': 'dir-button', 'index': 'ALL'}, 'n_clicks'),
+    Output({'type': 'dir-contents', 'index': Input({'type': 'dir-button', 'index': ''})}, 'children'),
+    Input({'type': 'dir-button', 'index': ''}, 'n_clicks'),
     prevent_initial_call=True
 )
 def toggle_dir_contents(n_clicks):
     if n_clicks % 2 == 0:
-        return {'display': 'none'}
+        return []
     else:
-        return {'display': 'block'}
+        return dcc.Store(id={'type': 'dir-contents', 'index': ''}).data
 
 if __name__ == '__main__':
     app.run_server(debug=True)
