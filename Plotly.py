@@ -14,39 +14,32 @@ bucket_name = 'seu-bucket-s3'
 
 app.layout = dbc.Container([
     html.H1('Árvore de Diretórios do Amazon S3'),
-    html.Div(id='s3-tree')
+    html.Div(id='s3-tree'),
 ])
 
 @app.callback(
     Output('s3-tree', 'children'),
-    Output('s3-tree', 'style'),
     Input('s3-tree', 'n_clicks'),
+    Input('s3-tree', 'data'),
     prevent_initial_call=True
 )
-def create_s3_tree(n_clicks):
-    objetos = listar_objetos_s3('')
-    tree_structure = '<div id="jstree">'
-    
+def update_tree(n_clicks, data):
+    if data is None:
+        current_dir = ''
+    else:
+        current_dir = data['current_dir']
+
+    objetos = listar_objetos_s3(current_dir)
+    tree_data = []
+
     for obj in objetos:
-        if '/' in obj:
-            subdir = obj.split('/')[0]
-            tree_structure += f'<li data-jstree=\'{{ "icon" : "fa fa-folder" }}\'>{subdir}</li>'
-    
-    tree_structure += '</div>'
-    
-    script = f"""
-    <script>
-        $('#jstree').jstree({{
-            "core" : {{
-                "data" : [
-                    {tree_structure}
-                ]
-            }}
-        }});
-    </script>
-    """
-    
-    return [dcc.Markdown(script)], {'overflow-y': 'scroll', 'height': '400px'}
+        if '/' in obj[len(current_dir):]:
+            subdir = obj[len(current_dir):].split('/')[0]
+            tree_data.append({'label': subdir, 'value': obj})
+        else:
+            tree_data.append({'label': obj[len(current_dir):], 'value': obj})
+
+    return {'tree_data': tree_data, 'current_dir': current_dir}
 
 def listar_objetos_s3(prefix):
     objetos = []
