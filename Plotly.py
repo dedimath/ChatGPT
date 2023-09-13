@@ -1,7 +1,7 @@
 import dash
 import dash_bootstrap_components as dbc
 from dash import dcc, html
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output
 import boto3
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -20,17 +20,10 @@ app.layout = dbc.Container([
 @app.callback(
     Output('tree', 'children'),
     Input('tree', 'n_clicks'),
-    State('tree', 'children'),
     prevent_initial_call=True
 )
-def toggle_dir_contents(n_clicks, children):
-    if not n_clicks:
-        return construir_arvore_s3('')
-    
-    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-    subdir = changed_id.split('.')[1]
-    prefix = f"{subdir}/"
-    return children + construir_arvore_s3(prefix)
+def toggle_dir_contents(n_clicks):
+    return construir_arvore_s3('')
 
 def listar_objetos_s3(prefix):
     objetos = []
@@ -45,7 +38,11 @@ def construir_arvore_s3(prefix):
     for obj in objetos:
         if '/' in obj[len(prefix):]:
             subdir = obj[len(prefix):].split('/')[0]
-            elementos.append(html.Button(f"{subdir}/", id={'type': 'dir-button', 'index': subdir}, n_clicks=0))
+            botao_expansao = dcc.Loading(type="default", children=[
+                html.Button(f"{subdir}/", id={'type': 'dir-button', 'index': subdir}, n_clicks=0),
+                html.Div(id={'type': 'dir-content', 'index': subdir})
+            ])
+            elementos.append(botao_expansao)
         else:
             elementos.append(html.Div(obj[len(prefix):]))
     return elementos
