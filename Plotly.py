@@ -30,16 +30,28 @@ def update_tree(n_clicks, data):
         current_dir = data['current_dir']
 
     objetos = listar_objetos_s3(current_dir)
-    tree_data = []
+    tree_elements = []
 
     for obj in objetos:
         if '/' in obj[len(current_dir):]:
             subdir = obj[len(current_dir):].split('/')[0]
-            tree_data.append({'label': subdir, 'value': obj})
+            button = html.Button(f"{subdir}/", id={'type': 'dir-button', 'index': subdir, 'current_dir': current_dir})
+            tree_elements.append(button)
         else:
-            tree_data.append({'label': obj[len(current_dir):], 'value': obj})
+            tree_elements.append(html.Div(obj[len(current_dir):]))
 
-    return {'tree_data': tree_data, 'current_dir': current_dir}
+    return tree_elements
+
+@app.callback(
+    Output('s3-tree', 'data'),
+    Input({'type': 'dir-button', 'index': Input('s3-tree', 'data')}, 'n_clicks'),
+    prevent_initial_call=True
+)
+def handle_directory_click(n_clicks, data):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    subdir = changed_id.split('.')[1]
+    current_dir = data['current_dir'] + subdir + '/'
+    return {'current_dir': current_dir}
 
 def listar_objetos_s3(prefix):
     objetos = []
