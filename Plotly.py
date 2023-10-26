@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, expr
+from pyspark.sql.functions import col, explode, expr
 
 # Inicialize uma sessão Spark
 spark = SparkSession.builder.appName("Exemplo").getOrCreate()
@@ -7,8 +7,8 @@ spark = SparkSession.builder.appName("Exemplo").getOrCreate()
 # Carregue os dados da sua fonte de dados (substitua 'source_path' pelo caminho do seu arquivo)
 df = spark.read.option("multiline", "true").json("source_path")
 
-# Selecione as colunas desejadas
-result = df.select(
+# Exploda os campos aninhados usando a função explode
+df_exploded = df.select(
     "fullvisitorid",
     "visitstarttime",
     "clientid",
@@ -42,7 +42,15 @@ result = df.select(
     "geoNetwork.region",
     "geoNetwork.cityId",
     "geoNetwork.latitude",
-    "geoNetwork.longitude",
+    "geoNetwork.longitude"
+)
+
+# Explodir o campo 'hits'
+df_hits = df.select("fullvisitorid", explode(col("hits")).alias("h"))
+
+# Selecione as colunas desejadas a partir do DataFrame explodido
+result = df_hits.select(
+    "fullvisitorid",
     "h.hitNumber",
     expr("UPPER(CAST(h.isEntrance AS STRING)) AS isentrance"),
     expr("UPPER(CAST(h.isExit AS STRING)) AS isexit"),
@@ -83,10 +91,11 @@ result = df.select(
     col("h.appInfo.exitScreenName").alias("exitscreenname"),
     col("h.appInfo.screenDepth").alias("screendepth"),
     expr(
-        "CONCAT(CAST(year AS STRING), CAST(month AS STRING), CAST(day AS STRING)) AS anomesdia"
+        "CONCAT(CAST(h.year AS STRING), CAST(h.month AS STRING), CAST(h.day AS STRING)) AS anomesdia"
     ),
-    "h.promotion",
-    "h.customdimensions",
+    col("h.promotion"),
+    col("h.customdimensions"),
+    col("h.productName").alias("product")
 )
 
 # Exiba o DataFrame resultante
