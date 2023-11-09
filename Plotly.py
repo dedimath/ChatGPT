@@ -1,157 +1,47 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, explode, expr
+import boto3
 
-# Inicialize uma sessão Spark
-spark = SparkSession.builder.appName("Exemplo").getOrCreate()
+def lambda_handler(event, context):
+    # Nome da fila FIFO do SQS
+    queue_name = 'sua-fila-fifo'
 
-# Carregue os dados da sua fonte de dados (substitua 'source_path' pelo caminho do seu arquivo)
-df = spark.read.option("multiline", "true").json("source_path")
+    # Inicializa o cliente do SQS
+    sqs = boto3.client('sqs')
 
-# Explodir o campo 'hits'
-df_exploded = df.select(
-    "fullvisitorid",
-    "visitstarttime",
-    "clientid",
-    "userid",
-    "visitnumber",
-    "visitid",
-    "date",
-    col("totals.newVisits").alias("newvisits"),
-    col("trafficSource.adContent").alias("adcontent"),
-    col("trafficSource.campaign").alias("campaign"),
-    col("trafficSource.campaignCode").alias("campaigncode"),
-    expr("UPPER(CAST(trafficSource.isTrueDirect AS STRING)) AS istruedirect"),
-    "trafficSource.keyword",
-    "trafficSource.medium",
-    "trafficSource.referralPath",
-    "trafficSource.source",
-    "socialEngagementType",
-    "channelGrouping",
-    "device.browser",
-    "device.browserSize",
-    "device.browserVersion",
-    "device.mobileDeviceInfo",
-    "device.operatingSystem",
-    "device.operatingSystemVersion",
-    "device.mobileDeviceBranding",
-    "device.screenColors",
-    "geoNetwork.networkLocation",
-    "geoNetwork.networkDomain",
-    "geoNetwork.city",
-    "geoNetwork.country",
-    "geoNetwork.region",
-    "geoNetwork.cityId",
-    "geoNetwork.latitude",
-    "geoNetwork.longitude",
-    explode("hits").alias("h")
-)
+    # Obtém a URL da fila com base no nome
+    response = sqs.get_queue_url(QueueName=queue_name)
+    queue_url = response['QueueUrl']
 
-# Selecione as colunas desejadas a partir do DataFrame explodido
-result = df_exploded.select(
-    "fullvisitorid",
-    "visitstarttime",
-    "clientid",
-    "userid",
-    "visitnumber",
-    "visitid",
-    "date",
-    "newvisits",
-    "adcontent",
-    "campaign",
-    "campaigncode",
-    "istruedirect",
-    "keyword",
-    "medium",
-    "referralpath",
-    "source",
-    "socialengagementtype",
-    "channelgrouping",
-    "browser",
-    "browsersize",
-    "browserversion",
-    "mobiledeviceinfo",
-    "operatingsystem",
-    "operatingsystemversion",
-    "mobiledevicebranding",
-    "screencolors",
-    "networklocation",
-    "networkdomain",
-    "city",
-    "country",
-    "region",
-    "cityid",
-    "latitude",
-    "longitude",
-    "h.hitNumber",
-    "isentrance",
-    "isexit",
-    "isinteraction",
-    "h.hour",
-    "h.minute",
-    "h.time",
-    "h.referer",
-    "transactionid",
-    "transactioncoupon",
-    "transactionrevenue",
-    "transactiontax",
-    "transactionshipping",
-    "affiliation",
-    "currencycode",
-    "localtransactionrevenue",
-    "localtransactiontax",
-    "localtransactionshipping",
-    "localrefundamount",
-    "refundamount",
-    "h.type",
-    "pagepath",
-    "hostname",
-    "pagetitle",
-    "searchkeyword",
-    "searchcategory",
-    "contentdescription",
-    "eventcategory",
-    "eventaction",
-    "eventlabel",
-    "eventvalue",
-    "appinstallerid",
-    "appname",
-    "appversion",
-    "appid",
-    "screenname",
-    "landingscreenname",
-    "exitscreenname",
-    "screendepth",
-    "promocreative",
-    "promoid",
-    "promoname",
-    "promoposition",
-    "promoisview",
-    "promoisclick",
-    "contentgroup1",
-    "contentgroup2",
-    "contentgroup3",
-    "contentgroup4",
-    "contentgroup5",
-    "exceptioninfodescription",
-    "exceptioninfoisfatal",
-    "product",
-    expr("ELEMENT_AT(FILTER(customdimensions, x -> x.index = 2 ), 1).value AS customdimension2"),
-    expr("ELEMENT_AT(FILTER(customdimensions, x -> x.index = 6 ), 1).value AS customdimension6"),
-    expr("ELEMENT_AT(FILTER(customdimensions, x -> x.index = 29), 1).value AS customdimension29"),
-    expr("ELEMENT_AT(FILTER(customdimensions, x -> x.index = 52), 1).value AS customdimension52"),
-    expr("ELEMENT_AT(FILTER(customdimensions, x -> x.index = 19), 1).value AS customdimension19"),
-    expr("ELEMENT_AT(FILTER(customdimensions, x -> x.index = 10), 1).value AS customdimension10"),
-    expr("ELEMENT_AT(FILTER(customdimensions, x -> x.index = 11), 1).value AS customdimension11"),
-    expr("ELEMENT_AT(FILTER(customdimensions, x -> x.index = 34), 1).value AS customdimension34"),
-    expr("ELEMENT_AT(FILTER(customdimensions, x -> x.index = 17), 1).value AS customdimension17"),
-    expr("ELEMENT_AT(FILTER(customdimensions, x -> x.index = 9 ), 1).value AS customdimension9"),
-    expr("ELEMENT_AT(FILTER(customdimensions, x -> x.index = 3 ), 1).value AS customdimension3"),
-    expr("ELEMENT_AT(FILTER(customdimensions, x -> x.index = 16), 1).value AS customdimension16"),
-    expr("CONCAT(CAST(h.year AS STRING), CAST(h.month AS STRING), CAST(h.day AS STRING)) AS anomesdia")
-)
+    # Recebe mensagens da fila
+    response = sqs.receive_message(
+        QueueUrl=queue_url,
+        AttributeNames=[
+            'All'
+        ],
+        MaxNumberOfMessages=1,  # Obtém uma única mensagem
+        MessageAttributeNames=[
+            'All'
+        ],
+        VisibilityTimeout=0,
+        WaitTimeSeconds=0  # Não espere por mensagens, apenas verifique se há alguma
+    )
 
-# Exiba o DataFrame resultante
-result.show()
+    if 'Messages' in response:
+        # Se há uma mensagem na fila, obtenha o corpo da mensagem
+        message = response['Messages'][0]
+        message_body = message['Body']
+        
+        # Exclua a mensagem da fila
+        receipt_handle = message['ReceiptHandle']
+        sqs.delete_message(
+            QueueUrl=queue_url,
+            ReceiptHandle=receipt_handle
+        )
 
-# Para salvar o resultado em um novo arquivo JSON (substitua 'output_path' pelo caminho desejado)
-result.write.json("output_path")
+        return {
+            "mensagem": message_body
+        }
+    else:
+        # Se não há mensagens na fila, retorne 0
+        return {
+            "mensagem": "0"
+        }
